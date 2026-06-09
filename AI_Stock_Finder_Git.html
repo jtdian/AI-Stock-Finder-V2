@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Stock Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f4f6f9;--surf:#ffffff;--card:#ffffff;--card-sel:#eef4ff;
+  --border:rgba(0,0,0,0.09);--border2:rgba(38,86,176,0.45);
+  --green:#1e7e52;--green-dim:rgba(30,126,82,0.1);
+  --blue:#2656b0;--gold:#a0720a;--red:#b83030;
+  --text:#111318;--text2:#4a5568;--text3:#9aa5b4;
+  --mono:'DM Mono',monospace;--body:'DM Sans',sans-serif;--display:'Bebas Neue',sans-serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--body);min-height:100vh}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(244,246,249,0.98);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);box-shadow:0 1px 0 rgba(0,0,0,0.08);padding:0.7rem 1.5rem;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.topbar-left{display:flex;align-items:center;gap:14px}
+.topbar-title{font-family:var(--display);font-size:26px;letter-spacing:1px;color:var(--text);line-height:1;white-space:nowrap}
+.topbar-title span{color:#2656b0}
+.topbar-date{font-size:11px;color:var(--text3);font-family:var(--mono)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.tabs{display:flex;gap:3px;background:var(--surf);border:1px solid var(--border);border-radius:10px;padding:3px}
+.tab{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--text2);transition:background 0.15s,color 0.15s;white-space:nowrap}
+.tab.active{background:#2656b0;color:#ffffff;font-weight:700}
+.tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#b83030;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:5px;min-width:18px}
+.btn-refresh{display:flex;align-items:center;gap:8px;background:#2656b0;color:#ffffff;border:none;border-radius:10px;padding:10px 20px;font-family:var(--body);font-size:14px;font-weight:700;cursor:pointer;transition:opacity 0.15s,transform 0.15s;box-shadow:0 0 18px rgba(38,86,176,0.14);white-space:nowrap}
+.btn-refresh:hover{opacity:0.88;transform:translateY(-1px)}
+.btn-refresh:active{transform:scale(0.97)}
+.spin{animation:spin 0.85s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PAGES ── */
+.page{display:none}.page.active{display:block}
+.wrap{max-width:1060px;margin:0 auto;padding:1.75rem 1.5rem 5rem}
+
+/* ── API KEY SETUP ── */
+.api-setup{background:rgba(38,86,176,0.07);border:1px solid rgba(38,86,176,0.14);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.5rem}
+.api-setup h3{font-size:14px;color:#a0720a;margin-bottom:6px}
+.api-setup p{font-size:12px;color:var(--text2);line-height:1.65;margin-bottom:10px}
+.api-setup a{color:#a0720a;font-weight:600}
+.api-row{display:flex;gap:8px;align-items:center}
+.api-inp{flex:1;background:var(--surf);border:1px solid rgba(38,86,176,0.12);border-radius:7px;padding:9px 13px;color:var(--text);font-family:var(--mono);font-size:13px;outline:none}
+.api-inp::placeholder{color:var(--text3)}
+.api-btn{background:#2656b0;color:#1a1200;border:none;border-radius:7px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.api-status{font-size:11px;margin-top:6px;font-family:var(--mono)}
+.api-status.ok{color:#2656b0}.api-status.err{color:#b83030}
+
+/* ── HERO ── */
+.hero{background:var(--surf);border:1px solid var(--border);border-radius:14px;padding:1.5rem 2rem;margin-bottom:1.25rem;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+.hero-title{font-family:var(--display);font-size:52px;line-height:0.95;letter-spacing:1px;color:#111318}
+.hero-title em{font-style:normal;color:#2656b0}
+.hero-sub{margin-top:8px;font-size:12px;color:var(--text3);line-height:1.7}
+.hero-date{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:4px}
+
+/* ── PILLS ── */
+.pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1.1rem}
+.pill{font-size:11px;padding:4px 11px;border-radius:20px;border:1px solid var(--border);color:var(--text2);background:var(--card);display:flex;align-items:center;gap:4px}
+
+/* ── SELECT BAR ── */
+.sel-bar{display:none;align-items:center;justify-content:space-between;background:rgba(38,86,176,0.07);border:1px solid rgba(38,86,176,0.16);border-radius:10px;padding:10px 16px;margin-bottom:1.1rem;gap:10px;flex-wrap:wrap}
+.sel-bar.visible{display:flex}
+.sel-bar-text{font-size:13px;color:var(--green);font-weight:500}
+.btn-add-port{display:flex;align-items:center;gap:7px;background:#2656b0;color:#ffffff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer}
+.btn-add-port:hover{opacity:0.88}
+.btn-clear{background:transparent;border:1px solid var(--text3);color:var(--text2);border-radius:8px;padding:8px 14px;font-size:12px;cursor:pointer}
+
+/* ── PICKS CARDS ── */
+.grid{display:flex;flex-direction:column;gap:20px}
+/* card = left summary column + right square chart column */
+.scard{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;transition:border-color 0.2s,background 0.15s,box-shadow 0.2s;animation:rise 0.32s ease both;cursor:pointer;display:grid;grid-template-columns:420px 1fr;align-items:stretch;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.scard:hover{border-color:var(--border2);box-shadow:0 4px 16px rgba(38,86,176,0.07)}
+.scard.selected{background:var(--card-sel);border:2px solid var(--green)}
+@keyframes rise{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
+
+/* left column wraps both scard-top and pick-price-strip */
+.scard-left{display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.scard-top{display:grid;grid-template-columns:34px 46px 1fr;padding:1rem 1.3rem 0.75rem;gap:0 0.75rem;flex:1}
+.check-col{display:flex;align-items:flex-start;padding-top:3px}
+.checkmark{width:20px;height:20px;border-radius:5px;border:2px solid var(--text3);display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s;flex-shrink:0}
+.scard.selected .checkmark{background:var(--green);border-color:var(--green)}
+.checkmark svg{width:12px;height:12px;stroke:#ffffff;stroke-width:3;display:none}
+.scard.selected .checkmark svg{display:block}
+.rank-col{display:flex;flex-direction:column;align-items:center;gap:5px;padding-top:2px}
+.rank-num{font-family:var(--display);font-size:22px;color:#c0cad8;line-height:1}
+.sig{font-size:9px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;padding:2px 5px;border-radius:3px;text-align:center;white-space:nowrap}
+.sig-Value{background:rgba(208,122,14,0.18);color:#2656b0;border:1px solid rgba(38,86,176,0.14)}
+.sig-Growth{background:rgba(38,86,176,0.07);color:#3a72c8;border:1px solid rgba(38,86,176,0.22)}
+.sig-Momentum{background:rgba(224,96,0,0.15);color:#a0720a;border:1px solid rgba(224,96,0,0.32)}
+.sig-Catalyst{background:rgba(184,48,48,0.1);color:#b83030;border:1px solid rgba(192,51,42,0.32)}
+.body-col{min-width:0}
+.top-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.ticker{font-family:var(--display);font-size:22px;color:#2656b0;letter-spacing:1px;line-height:1}
+.co-name{font-size:12px;color:var(--text2)}
+.sector-tag{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(38,86,176,0.07);color:#2656b0;border:1px solid rgba(38,86,176,0.12);white-space:nowrap}
+.upside-inline{font-family:var(--display);font-size:18px;color:#2656b0;background:rgba(38,86,176,0.07);border:1px solid rgba(38,86,176,0.16);padding:2px 10px;border-radius:6px;white-space:nowrap;margin-left:auto}
+.mets{display:flex;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+.met{display:flex;flex-direction:column;gap:1px}
+.ml{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);font-family:var(--mono)}
+.mv{font-size:11px;font-family:var(--mono);color:var(--text2)}
+.mv-g{font-size:11px;font-family:var(--mono);color:#2656b0}
+.mv-a{font-size:11px;font-family:var(--mono);color:#a0720a}
+.reason{font-size:12px;line-height:1.6;color:#4a5568}
+.conf-row{display:flex;align-items:center;gap:10px;margin-top:8px}
+.conf-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--mono)}
+.conf-bar{display:flex;gap:2px}
+.conf-bar span{width:8px;height:8px;border-radius:2px}
+.conf-score{font-family:var(--display);font-size:16px;line-height:1}
+
+/* live price strip — sits at the bottom of left column */
+.pick-price-strip{display:flex;align-items:center;gap:16px;padding:10px 1.3rem;border-top:1px solid var(--border);background:rgba(13,17,23,0.6);margin-top:auto}
+.pps-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--mono)}
+.pps-price{font-family:var(--display);font-size:22px;color:#111318;letter-spacing:0.5px}
+.pps-price.loading{font-size:13px;font-family:var(--body);color:var(--text3)}
+.pps-chg{font-size:12px;font-family:var(--mono);font-weight:500}
+.pps-chg.up{color:#2656b0}.pps-chg.down{color:#b83030}
+.pps-dot{width:7px;height:7px;border-radius:50%;background:#2656b0;animation:livepulse 2s ease-in-out infinite;flex-shrink:0}
+.pps-hl{display:flex;gap:12px;margin-left:auto}
+.pps-hl span{font-size:10px;font-family:var(--mono);color:var(--text3)}
+.pps-hl b{color:var(--text2)}
+@keyframes livepulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.25;transform:scale(0.6)}}
+
+/* square chart — right column, same height as left */
+.scard-chart{width:100%;aspect-ratio:1/1;background:#f4f6f9;position:relative;min-height:420px}
+.scard-chart .tradingview-widget-container{position:absolute;inset:0}
+.scard-chart .tradingview-widget-container__widget{height:100%;width:100%}
+
+/* ── PORTFOLIO ── */
+.port-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem}
+.port-header h2{font-family:var(--display);font-size:36px;color:var(--text);letter-spacing:1px}
+.port-header h2 span{color:#2656b0}
+.port-sub{font-size:12px;color:var(--text3)}
+
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:1.75rem}
+.sum-card{background:var(--surf);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
+.sum-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--mono);margin-bottom:4px}
+.sum-value{font-size:20px;font-weight:500;font-family:var(--mono);color:var(--text)}
+.sum-value.up{color:#2656b0}.sum-value.down{color:#b83030}
+
+.port-empty{text-align:center;padding:4rem 2rem;color:var(--text3)}
+.port-empty h3{font-family:var(--display);font-size:28px;margin-bottom:8px;color:var(--text2)}
+
+/* portfolio card */
+.port-card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:16px;animation:rise 0.3s ease both;box-shadow:0 1px 4px rgba(0,0,0,0.08)}
+.port-card-body{display:grid;grid-template-columns:480px 1fr}
+.port-info{padding:1.25rem 1.5rem;border-right:1px solid var(--border)}
+.port-ticker-row{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+.port-ticker{font-family:var(--display);font-size:28px;color:#2656b0;letter-spacing:1px}
+.port-target{font-size:11px;color:#a0720a;font-family:var(--mono)}
+.port-co{font-size:12px;color:var(--text3);margin-bottom:12px}
+
+/* live price badge */
+.live-badge{display:flex;align-items:center;gap:10px;background:rgba(38,86,176,0.07);border:1px solid rgba(38,86,176,0.12);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#2656b0;flex-shrink:0;animation:livepulse 2s ease-in-out infinite}
+.live-col{display:flex;flex-direction:column;gap:1px}
+.live-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--mono)}
+.live-price{font-family:var(--display);font-size:28px;color:#2656b0;letter-spacing:0.5px;line-height:1}
+.live-price.fetching{color:var(--text3);font-size:14px;font-family:var(--body);font-family:var(--body)}
+.live-sub{font-size:10px;color:var(--text3);font-family:var(--mono)}
+.live-right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.live-chg{font-size:13px;font-family:var(--mono);font-weight:600}
+.live-chg.up{color:#2656b0}.live-chg.down{color:#b83030}
+.live-hl{font-size:10px;font-family:var(--mono);color:var(--text3);text-align:right}
+
+/* inputs */
+.input-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.ifield{display:flex;flex-direction:column;gap:4px}
+.ifield label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--mono)}
+.ifield input{background:#f8f9fc;border:1px solid rgba(0,0,0,0.1);border-radius:7px;padding:9px 12px;color:var(--text);font-family:var(--mono);font-size:14px;width:100%;outline:none;transition:border-color 0.15s}
+.ifield input:focus{border-color:#2656b0}
+.ifield input::placeholder{color:#9aa5b4}
+.ifield input.auto{color:#2656b0;background:rgba(208,122,14,0.05);border-color:rgba(38,86,176,0.14)}
+.ifield input.autofilled{color:#a0720a;background:rgba(224,96,0,0.06);border-color:rgba(224,96,0,0.25)}
+.ifield .field-hint{font-size:9px;color:var(--text3);font-family:var(--mono);margin-top:2px}
+
+/* result boxes */
+.result-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rbox{background:var(--surf);border:1px solid var(--border);border-radius:8px;padding:9px 12px}
+.rbox-label{font-size:9px;text-transform:uppercase;letter-spacing:0.8px;color:var(--text3);font-family:var(--mono);margin-bottom:3px}
+.rbox-val{font-size:15px;font-weight:500;font-family:var(--mono);color:var(--text)}
+.rbox-val.up{color:#2656b0}.rbox-val.down{color:#b83030}
+
+.btn-remove{background:rgba(184,48,48,0.1);border:1px solid rgba(192,51,42,0.3);color:#b83030;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;white-space:nowrap}
+.btn-remove:hover{background:rgba(184,48,48,0.1)}
+
+/* chart side */
+.port-chart-side{background:#f4f6f9;min-height:460px}
+.port-chart-side .tradingview-widget-container,.port-chart-side .tradingview-widget-container__widget{height:100%;min-height:460px}
+
+.disc{margin-top:2.5rem;border-top:1px solid var(--border);padding-top:1.5rem;font-size:11px;color:var(--text3);line-height:1.75}
+
+@media(max-width:900px){
+  .port-card-body{grid-template-columns:1fr}
+  .port-info{border-right:none;border-bottom:1px solid var(--border)}
+  .topbar-date{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-title">Daily <span>Stock</span> Finder</div>
+    <div style="font-size:11px;color:#9aa5b4;font-family:var(--body);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap">by Julius Dian</div>
+    <div class="topbar-date" id="topbar-date"></div>
+  </div>
+  <div class="topbar-right">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('picks')">📈 Picks</button>
+      <button class="tab" onclick="switchTab('portfolio')">💼 Portfolio<span class="tab-badge" id="port-badge" style="display:none">0</span></button>
+    </div>
+    <button class="btn-refresh" onclick="askRefresh()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      🔄 NEW PICKS
+    </button>
+  </div>
+</div>
+
+<!-- PICKS PAGE -->
+<div class="page active" id="page-picks">
+  <div class="wrap">
+    <div class="hero">
+      <div class="hero-title">Daily <em>Stock</em> Finder</div>
+      <div class="hero-sub">Small &amp; mid-cap hidden gems · Pre-earnings momentum · AI-powered by Gemini · Live prices via Finnhub</div>
+      <div class="hero-date" id="hero-date"></div>
+    </div>
+
+    <!-- API KEY SETUP -->
+    <div class="api-setup" id="apiSetup">
+      <h3>🔑 Two free API keys needed — takes 3 minutes total</h3>
+      <p><strong>Key 1 — Google Gemini (AI picks):</strong> Go to <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API Key → Create API Key. Free, no credit card.<br>
+      <strong>Key 2 — Finnhub (live prices):</strong> Go to <a href="https://finnhub.io/register" target="_blank">finnhub.io/register</a> → sign up free → copy your key from the dashboard.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+        <div>
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);display:block;margin-bottom:4px">Gemini API Key</label>
+          <input class="api-inp" id="geminiKeyInput" type="text" placeholder="AIzaSy…"/>
+        </div>
+        <div>
+          <label style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-family:var(--mono);display:block;margin-bottom:4px">Finnhub API Key (live prices)</label>
+          <input class="api-inp" id="apiKeyInput" type="text" placeholder="Paste Finnhub key…"/>
+        </div>
+      </div>
+      <button class="api-btn" onclick="saveApiKey()">Save Both Keys</button>
+      <div class="api-status" id="apiKeyStatus"></div>
+    </div>
+
+    <div class="pills">
+      <div class="pill"><span style="color:var(--green)">◆</span> P/E vs Sector</div>
+      <div class="pill"><span style="color:var(--blue)">◆</span> EPS Growth</div>
+      <div class="pill"><span style="color:var(--gold)">◆</span> Revenue Momentum</div>
+      <div class="pill"><span style="color:var(--red)">◆</span> Catalyst</div>
+      <div class="pill"><span style="color:var(--green)">◆</span> Breakout Signal</div>
+    </div>
+    <div class="sel-bar" id="selBar">
+      <span class="sel-bar-text" id="selBarText">0 stocks selected</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-add-port" onclick="addSelectedToPortfolio()">+ Add to Portfolio</button>
+        <button class="btn-clear" onclick="clearSelection()">Clear</button>
+      </div>
+    </div>
+    <div id="stockGrid" class="grid"></div>
+    <div class="disc">
+      <strong style="color:var(--text2)">⚠ For research &amp; entertainment only — not financial advice.</strong>
+      Live prices via Finnhub free API. Charts powered by TradingView — fully interactive.
+    </div>
+  </div>
+</div>
+
+<!-- PORTFOLIO PAGE -->
+<div class="page" id="page-portfolio">
+  <div class="wrap">
+    <div class="port-header">
+      <h2>My <span>Portfolio</span></h2>
+      <span class="port-sub">🟢 Live prices · Auto-refreshes every 60s</span>
+    </div>
+    <div class="summary-grid" id="summaryGrid"></div>
+    <div id="portContent"></div>
+    <div class="disc" style="margin-top:1.5rem">
+      <strong style="color:var(--text2)">How to use:</strong>
+      Enter the <strong style="color:var(--gold)">dollar amount you invested</strong> — the buy price auto-fills from the live price at that moment, and shares calculate automatically.
+      Live price updates every 60 seconds and recalculates your gain/loss in real time.
+    </div>
+  </div>
+</div>
+
+<script src="https://s3.tradingview.com/tv.js"></script>
+<script>
+// ── PICKS DATA ────────────────────────────────────────────────────────────────
+const PICKS = [
+  {symbol:"EVER", company:"EverQuote",              sector:"InsurTech",    signal:"Growth",
+   pe_note:"Fwd P/E reasonable; debt-free balance sheet", eps_note:"Q1 EPS $0.51 vs $0.44 est — 16% surprise; rev +21% YoY",
+   catalyst:"Earnings Aug 10 · AI lead-gen tripling rev/employee", upside:"+32%", confidence:9,
+   reasoning:"EverQuote is a $1B-cap online insurance marketplace connecting consumers with carriers, sitting at the intersection of AI-driven lead generation and P&C insurance spending recovery. Q1 2026 revenue hit $190.85M — beating estimates by $10M — while EPS of $0.51 crushed the $0.44 consensus by 16%, and Q2 guidance of $185–195M implies another 21% growth year. The company has tripled revenue per employee since 2023 by deploying AI tools like SmartCampaign and integrating with LLM chatbots, creating a structural cost advantage that widens margins as revenue scales. With earnings due August 10 and a debt-free balance sheet at reasonable multiples, EVER is a textbook pre-earnings momentum setup with a clear path to $1B+ annual revenue."},
+  {symbol:"FIX",  company:"Comfort Systems USA",    sector:"Industrials",  signal:"Momentum",
+   pe_note:"Mid-30s P/E — justified by 99% backlog growth YoY", eps_note:"Q4 EPS $9.37 vs $6.77 est — 38% beat; 4 consecutive beats",
+   catalyst:"$11.9B backlog · AI data center cooling contracts", upside:"+29%", confidence:9,
+   reasoning:"Comfort Systems USA has quietly transformed from a regional HVAC contractor into the dominant provider of mission-critical cooling infrastructure for AI data centers, with its backlog growing 99.3% year-over-year to $11.9B as of December 2025. Q4 EPS of $9.37 crushed the $6.77 estimate by 38%, and analysts now model $36.60 EPS for full-year 2026 — up 26.7% — with 6 of 8 analysts at Strong Buy and a consensus target of $1,645. The company has beaten Wall Street estimates in each of the last four quarters, and the AI infrastructure build-out provides a multi-year backlog that competitors cannot match quickly. At $1.27B market cap and with a structural tailwind that has no obvious ceiling, FIX is one of the most compelling mid-cap growth stories on the market."},
+  {symbol:"REPX", company:"Riley Exploration Permian", sector:"Energy",   signal:"Value",
+   pe_note:"Fwd P/E 5.53x — deep value for FCF yield", eps_note:"Q4 EPS $1.01 vs $0.83 est — 22% beat; Strong Buy consensus",
+   catalyst:"Strong FCF · 2026 production guidance 37.5–39.5 MBoe/d", upside:"+28%", confidence:8,
+   reasoning:"Riley Exploration Permian is a $1.1B-cap Permian Basin E&P operator trading at just 5.53x forward earnings — one of the cheapest valuations in small-cap energy — with a Strong Buy consensus from all 5 covering analysts and a price target of $45. The company beat Q4 estimates by 22% with EPS of $1.01, reaffirmed its 2026 production guidance of 37.5–39.5 MBoe/d, and generates robust free cash flow that is rapidly paying down the debt from its Silverback Energy acquisition. With oil prices supportive and the Permian Basin's cost structure among the lowest in US onshore production, REPX offers a rare combination of deep value, strong FCF, and a production growth profile that most large-cap energy names cannot match on a per-share basis."},
+  {symbol:"KTOS", company:"Kratos Defense & Security", sector:"Defense",  signal:"Catalyst",
+   pe_note:"Growth-stage defense; expanding DoD contracts", eps_note:"Consistent beats; defense budget tailwind 2026",
+   catalyst:"Elevated defense budgets · Drone warfare demand", upside:"+30%", confidence:8,
+   reasoning:"Kratos Defense builds affordable unmanned systems, hypersonic test vehicles, and satellite communications equipment — exactly the categories receiving the largest budget increases in the 2026 defense authorization. The company benefits directly from the shift toward expendable autonomous platforms, where its Valkyrie drone and tactical unmanned systems are production-ready at scale while competitors are still in development. Defense budgets remain structurally elevated due to ongoing geopolitical tensions, providing a multi-year revenue floor that shields Kratos from typical growth-stock volatility. As a $2.8B-cap company in a sector historically dominated by large primes, Kratos has runway to grow 3–4x before institutional investors start comparing it to Raytheon or L3Harris."},
+  {symbol:"STRL", company:"Sterling Infrastructure",  sector:"Industrials", signal:"Momentum",
+   pe_note:"Reasonable multiple for 52-week high breakout stock", eps_note:"Hit 52-week high April 30 2026; data center backlog expanding",
+   catalyst:"Data center civil construction boom · Seasonality peak", upside:"+25%", confidence:8,
+   reasoning:"Sterling Infrastructure provides civil construction services for data centers, e-commerce warehouses, and residential communities — three categories growing simultaneously in 2026's infrastructure-heavy economy. The stock hit 52-week highs on April 30 confirming technical trend leadership, while its data center civil construction backlog is expanding rapidly as hyperscalers pour concrete across the Sun Belt. May through August is the seasonal peak for construction revenues, creating a natural earnings catalyst in the Q2 and Q3 reporting windows. At a $2.5B market cap, STRL is large enough to be institutionally credible but small enough that most retail investors haven't heard of it."},
+  {symbol:"ORN",  company:"Orion Group Holdings",    sector:"Construction", signal:"Growth",
+   pe_note:"Small-cap; improving margins; $400M bonding capacity raised", eps_note:"YTD gain 40.2%; marine infrastructure backlog strong",
+   catalyst:"Defense marine contracts · Data center concrete backlog", upside:"+26%", confidence:7,
+   reasoning:"Orion Group Holdings is a specialty construction contractor focused on marine infrastructure — ports, dredging, defense facilities — and concrete construction for data centers and industrial facilities. The company raised its aggregate bonding capacity by $400M in October 2025, enabling it to pursue projects that were previously too large, and its pipeline of defense-related marine work is expanding alongside elevated Pentagon budgets. YTD gains of 40.2% confirm the market is beginning to reprice this $450M-cap contractor, though analysts believe the full re-rating is still ahead. With seasonal construction peak running through August and a healthy backlog of bid activity, ORN is a niche infrastructure play most investors haven't found yet."},
+  {symbol:"PSTL", company:"Postal Realty Trust",     sector:"REIT",        signal:"Value",
+   pe_note:"18.5% AFFO discount to sector; 5.94% dividend yield", eps_note:"32.8% projected FFO growth; Zacks #1 Strong Buy",
+   catalyst:"USPS lease renewals · Rate cuts boosting REIT multiples", upside:"+24%", confidence:8,
+   reasoning:"Postal Realty Trust is the only publicly traded REIT exclusively focused on leasing properties to the US Postal Service — giving it a tenant with essentially zero default risk and inflation-linked lease escalators built into long-term contracts. The company trades at an 18.5% discount to its Adjusted Funds From Operations versus sector peers, pays a 5.94% dividend yield, and analysts project 32.8% FFO growth driven by USPS lease renewals and portfolio expansion. As interest rates ease through 2026, REIT multiples typically expand — providing a double catalyst of improving fundamentals and valuation re-rating. At a $400M market cap, PSTL is entirely off the radar of most retail investors and most financial media."},
+  {symbol:"IRIDM", company:"Iridium Communications", sector:"Satellite",  signal:"Catalyst",
+   pe_note:"Mid-cap; unique LEO network moat; recurring rev model", eps_note:"Q4 2025 beat estimates; NTN Direct IoT tests successful",
+   catalyst:"Low-earth IoT NTN Direct service · Commercial launch 2026", upside:"+27%", confidence:7,
+   reasoning:"Iridium operates the only truly global low-earth-orbit satellite network with pole-to-pole coverage, giving it a physical infrastructure moat that cannot be replicated quickly even with unlimited capital. After successfully testing its NTN Direct service for IoT devices in early 2026 — enabling everything from autonomous vehicles to surveillance drones to communicate via satellite — Iridium announced Q4 earnings that beat estimates and confirmed commercial momentum. The NTN Direct service represents an entirely new revenue stream layered on top of its existing government and commercial subscriber base, which already generates predictable recurring revenue. As IoT device proliferation accelerates across maritime, aviation, and industrial sectors, Iridium's unique network becomes more valuable with each connected device."},
+
+  {symbol:"INR",  company:"International General Insurance", sector:"Specialty Insurance", signal:"Catalyst",
+   pe_note:"Small-cap; 283% projected EPS growth post-acquisition", eps_note:"Antero acquisition closed; EPS growth 283% YoY modeled",
+   catalyst:"Antero acquisition synergies · EPS inflection 2026", upside:"+35%", confidence:7,
+   reasoning:"International General Insurance is a $600M-cap specialty insurance holding company that closed its acquisition of Antero in early 2026, creating an EPS growth inflection point that analysts model at 283% year-over-year as acquisition synergies flow through. Specialty insurance is a high-margin, capital-light business with durable pricing power in lines like marine cargo, energy, and liability — areas where IGI has decades of underwriting expertise. The Antero deal significantly expands IGI's distribution capacity and premium volume at a moment when specialty insurance pricing remains firm. At current levels the stock has not yet priced in the full earnings uplift from the acquisition, making this one of the highest-conviction small-cap earnings inflection plays of 2026."},
+  {symbol:"HIMS", company:"Hims & Hers Health",      sector:"HealthTech",  signal:"Growth",
+   pe_note:"Revenue growing >70% YoY; path to profitability clear", eps_note:"Consecutive revenue beats; GLP-1 and dermatology expansion",
+   catalyst:"Compounded GLP-1 revenue · Expanding treatment categories", upside:"+30%", confidence:7,
+   reasoning:"Hims & Hers is a $2.5B-cap telehealth platform that has found genuine product-market fit by making affordable personalized healthcare accessible via subscription — weight loss, hair, skin, and sexual health — with GLP-1 compounded medications becoming a massive new growth driver in 2025 and 2026. Revenue has been growing above 70% year-over-year as the company adds treatment categories and scales its pharmacy infrastructure, while unit economics improve with each passing quarter as fixed costs spread over a larger subscriber base. The GLP-1 opportunity alone is enormous — tens of millions of Americans want access to weight-loss medication and Hims offers a significantly cheaper route than branded alternatives. At its current market cap with this growth rate, HIMS is one of the most attractively priced high-growth mid-caps in the healthcare sector."},
+  {symbol:"RDDT", company:"Reddit",                  sector:"Social Media", signal:"Growth",
+   pe_note:"Early-stage profitability; high-value data licensing", eps_note:"Revenue growing >60% YoY; AI data licensing expanding",
+   catalyst:"AI training data licensing · Search integration deals", upside:"+28%", confidence:7,
+   reasoning:"Reddit is a $6B-cap internet community platform that has discovered an unexpected high-margin revenue stream — licensing its decade-deep repository of human conversation data to AI companies training large language models. This data licensing business is growing rapidly and carries near-100% gross margins, sitting alongside a traditional advertising business that is itself growing above 60% year-over-year as the company improves ad targeting. Reddit's communities generate uniquely authentic human-generated content that AI companies need and cannot synthesize, creating a durable competitive moat. At its current valuation Reddit is significantly cheaper than comparable social media platforms on a revenue-multiple basis, despite having a more defensible position in the AI data economy."}
+];
+
+
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let selected     = new Set();
+let portfolio    = JSON.parse(localStorage.getItem('dsf_portfolio') || '[]');
+let priceCache   = {};   // symbol -> {price, prev, high, low, pct}
+let priceTimers  = {};
+let tvWidgets    = {};
+
+portfolio.forEach(p => {
+  if (!('currentPrice'  in p)) p.currentPrice   = null;
+  if (!('amountInvested'in p)) p.amountInvested  = '';
+  if (!('buyPrice'      in p)) p.buyPrice        = '';
+  if (!('shares'        in p)) p.shares          = '';
+  if (!('buyAutoFilled' in p)) p.buyAutoFilled   = false;
+});
+
+// ── API KEY ───────────────────────────────────────────────────────────────────
+function getFinnhubKey() { return localStorage.getItem('finnhub_key') || ''; }
+function getGeminiKey() { return localStorage.getItem('gemini_key') || ''; }
+function saveApiKey() {
+  const geminiKey = document.getElementById('geminiKeyInput') ? document.getElementById('geminiKeyInput').value.trim() : '';
+  const finnhubKey = document.getElementById('apiKeyInput').value.trim();
+  const statusEl = document.getElementById('apiKeyStatus');
+  if (!geminiKey && !finnhubKey) { statusEl.textContent = 'Please paste at least one key.'; statusEl.className='api-status err'; return; }
+  statusEl.textContent = 'Saving keys…'; statusEl.className='api-status';
+  if (geminiKey) localStorage.setItem('gemini_key', geminiKey);
+  if (finnhubKey) localStorage.setItem('finnhub_key', finnhubKey);
+  statusEl.textContent = '✅ Keys saved! Loading now…'; statusEl.className='api-status ok';
+  document.getElementById('apiSetup').style.opacity='0.5';
+  if (finnhubKey) { fetchAllPickPrices(); startPortfolioPolling(); }
+}
+
+// ── FINNHUB QUOTE ─────────────────────────────────────────────────────────────
+async function fetchQuote(symbol) {
+  const key = getFinnhubKey();
+  if (!key) return null;
+  try {
+    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${key}`);
+    const d = await r.json();
+    if (!d.c) return null;
+    return { price: d.c, prev: d.pc, high: d.h, low: d.l, pct: d.dp, chg: d.d };
+  } catch { return null; }
+}
+
+// ── TRADINGVIEW WIDGET ────────────────────────────────────────────────────────
+function buildTV(containerId, symbol) {
+  if (!window.TradingView) return;
+  try { if (tvWidgets[containerId]) { tvWidgets[containerId].remove(); } } catch {}
+  const isPick = containerId.startsWith('tv-pick-');
+  const wrap   = document.getElementById(containerId);
+  const h      = wrap ? wrap.offsetHeight || 600 : 600;
+  tvWidgets[containerId] = new TradingView.widget({
+    container_id: containerId,
+    symbol: 'NASDAQ:' + symbol,
+    interval: 'D',
+    range: 'YTD',
+    theme: 'dark',
+    style: '1',
+    locale: 'en',
+    toolbar_bg: '#f8f4ee',
+    enable_publishing: false,
+    hide_top_toolbar: false,
+    hide_side_toolbar: isPick ? false : true,
+    allow_symbol_change: false,
+    save_image: false,
+    hide_volume: false,
+    withdateranges: true,
+    details: isPick,
+    hotlist: false,
+    calendar: false,
+    width: '100%',
+    height: isPick ? '100%' : h,
+    autosize: isPick,
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  const today = new Date();
+  const ds = today.toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('topbar-date').textContent = ds;
+  document.getElementById('hero-date').textContent   = 'Picks for ' + ds;
+  updateBadge();
+  renderStocks();
+  const finnhubKey = getFinnhubKey();
+  const geminiKey  = getGeminiKey();
+  if (finnhubKey || geminiKey) {
+    if (document.getElementById('apiKeyInput') && finnhubKey) document.getElementById('apiKeyInput').value = finnhubKey;
+    if (document.getElementById('geminiKeyInput') && geminiKey) document.getElementById('geminiKeyInput').value = geminiKey;
+    document.getElementById('apiSetup').style.opacity = '0.5';
+    document.getElementById('apiKeyStatus').textContent = '✅ Keys loaded';
+    document.getElementById('apiKeyStatus').className = 'api-status ok';
+    if (finnhubKey) fetchAllPickPrices();
+  }
+}
+
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  if (tab==='picks') {
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.getElementById('page-picks').classList.add('active');
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('page-portfolio').classList.add('active');
+    renderPortfolio();
+    startPortfolioPolling();
+  }
+}
+async function askRefresh() {
+  const key = getGeminiKey();
+  if (!key) {
+    alert('Paste your free Gemini API key into the setup box at the top first.\nGet one free at aistudio.google.com');
+    document.getElementById('apiSetup').style.opacity='1';
+    return;
+  }
+  await loadFreshPicks(key);
+}
+
+async function loadFreshPicks(geminiKey) {
+  const btn = document.querySelector('.btn-refresh');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="ti ti-refresh spin"></i> Generating picks…'; }
+
+  const SYSTEM_PROMPT = `You are a sharp stock analyst specializing in small and mid-cap hidden gems ($300M–$3B market cap) and pre-earnings momentum plays for moderate-risk investors with a 6-month horizon.
+
+Your criteria:
+1. Small/mid-cap hidden gems: market cap $300M–$3B, strong fundamentals, under-followed by Wall Street, clear catalyst ahead
+2. Pre-earnings momentum: upcoming earnings in next 4-8 weeks with strong beat setup — look for EPS revision upgrades, elevated short interest, insider buying
+3. Moderate risk: avoid pure speculative plays, require at least 2 of: positive EPS, revenue growth, analyst upgrades, technical breakout
+4. Avoid mega-caps (NVDA, AAPL, GOOGL, META, MSFT, AMZN) — find names most retail investors haven't found yet
+
+Search for: recent analyst upgrades on small/mid caps, upcoming earnings dates with strong setups, sector rotation into overlooked names, stocks near 52-week highs on volume, recent insider buying filings.
+
+Return a JSON array of exactly 10-12 stocks. Each object must have EXACTLY these keys:
+- symbol: NYSE/NASDAQ ticker string
+- company: full company name
+- sector: 1-2 word string
+- signal: exactly one of "Value" | "Growth" | "Momentum" | "Catalyst"
+- pe_note: P/E context string
+- eps_note: EPS trend string  
+- catalyst: specific catalyst in 8 words or fewer
+- upside: projected upside e.g. "+24%"
+- confidence: number 1-10
+- reasoning: exactly 4 sentences explaining the thesis
+
+Return ONLY the raw JSON array. No markdown, no backticks, no explanation outside the JSON.`;
+
+  const today = new Date().toDateString();
+  const userMsg = `Today is ${today}. Search for the latest small and mid-cap stock opportunities — analyst upgrades, upcoming earnings beats, sector rotation, insider buying, technical breakouts. Focus on stocks with $300M-$3B market cap that most retail investors haven't found yet. Generate 10-12 picks following the criteria in your instructions.`;
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+          contents: [{ parts: [{ text: userMsg }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: { temperature: 0.7, maxOutputTokens: 4000 }
+        })
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err?.error?.message || 'Gemini API error ' + res.status);
+    }
+
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('') || '';
+    if (!text) throw new Error('No response from Gemini');
+
+    let raw = text.replace(/\`\`\`json|\`\`\`/g, '').trim();
+    const a = raw.indexOf('['), b = raw.lastIndexOf(']');
+    if (a < 0 || b < 0) throw new Error('No JSON array in response');
+    const picks = JSON.parse(raw.slice(a, b+1));
+    if (!Array.isArray(picks) || !picks.length) throw new Error('Empty picks list');
+
+    // Update global PICKS and re-render
+    PICKS.length = 0;
+    picks.forEach(p => PICKS.push(p));
+    renderStocks();
+    if (finnhubKey) setTimeout(fetchAllPickPrices, 400);
+
+    if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> 🔄 NEW PICKS'; }
+
+  } catch(err) {
+    alert('Error generating picks: ' + err.message + '\n\nMake sure your Gemini API key is correct.');
+    if (btn) { btn.disabled = false; btn.innerHTML = '🔄 NEW PICKS'; }
+    console.error(err);
+  }
+}
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function confColor(n){return n>=8?'#2656b0':n>=6?'#2656b0':'#b83030'}
+function updateBadge(){const b=document.getElementById('port-badge');b.textContent=portfolio.length;b.style.display=portfolio.length>0?'inline-flex':'none'}
+function savePortfolio(){localStorage.setItem('dsf_portfolio',JSON.stringify(portfolio));updateBadge()}
+
+// ── FETCH ALL PICKS PRICES ────────────────────────────────────────────────────
+async function fetchAllPickPrices() {
+  for (const pick of PICKS) {
+    const q = await fetchQuote(pick.symbol);
+    if (!q) continue;
+    priceCache[pick.symbol] = q;
+    updatePickPriceStrip(pick.symbol, q);
+  }
+}
+function updatePickPriceStrip(symbol, q) {
+  const priceEl = document.getElementById('pps-price-' + symbol);
+  const chgEl   = document.getElementById('pps-chg-'   + symbol);
+  const hlEl    = document.getElementById('pps-hl-'    + symbol);
+  if (priceEl) { priceEl.textContent = '$' + q.price.toFixed(2); priceEl.className='pps-price'; }
+  if (chgEl)  { const s=q.pct>=0?'+':''; chgEl.textContent=s+q.pct.toFixed(2)+'% ('+s+'$'+Math.abs(q.chg).toFixed(2)+')'; chgEl.className='pps-chg '+(q.pct>=0?'up':'down'); }
+  if (hlEl)   { hlEl.innerHTML=`H <b>$${q.high.toFixed(2)}</b> &nbsp; L <b>$${q.low.toFixed(2)}</b>`; }
+}
+
+// ── PORTFOLIO PRICE POLLING ───────────────────────────────────────────────────
+async function refreshPortfolioPrice(symbol) {
+  const q = await fetchQuote(symbol);
+  if (!q) return;
+  priceCache[symbol] = q;
+  const item = portfolio.find(p=>p.symbol===symbol);
+  if (item) { item.currentPrice = q.price; savePortfolio(); }
+
+  const priceEl = document.getElementById('lp-'   + symbol);
+  const chgEl   = document.getElementById('lchg-' + symbol);
+  const hlEl    = document.getElementById('lhl-'  + symbol);
+  const updEl   = document.getElementById('lupd-' + symbol);
+  if (priceEl) { priceEl.textContent='$'+q.price.toFixed(2); priceEl.className='live-price'; }
+  if (chgEl)  { const s=q.pct>=0?'+':''; chgEl.textContent=s+q.pct.toFixed(2)+'% today'; chgEl.className='live-chg '+(q.pct>=0?'up':'down'); }
+  if (hlEl)   { hlEl.innerHTML=`H <b>$${q.high.toFixed(2)}</b> &nbsp; L <b>$${q.low.toFixed(2)}</b>`; }
+  if (updEl)  { updEl.textContent='Updated '+new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',second:'2-digit'}); }
+
+  // if buy price was auto-filled, keep it up to date only if user hasn't typed invested yet
+  const p = portfolio.find(x=>x.symbol===symbol);
+  if (p && p.buyAutoFilled && !p.amountInvested) {
+    p.buyPrice = q.price.toFixed(2);
+    const bpEl = document.getElementById('bp-'+symbol);
+    if (bpEl && document.activeElement !== bpEl) bpEl.value = q.price.toFixed(2);
+    savePortfolio();
+  }
+  recalcCard(symbol);
+}
+
+function startPortfolioPolling() {
+  portfolio.forEach(p => {
+    refreshPortfolioPrice(p.symbol);
+    if (!priceTimers[p.symbol]) {
+      priceTimers[p.symbol] = setInterval(()=>refreshPortfolioPrice(p.symbol), 60000);
+    }
+  });
+}
+
+// ── RECALC CARD ───────────────────────────────────────────────────────────────
+function recalcCard(symbol) {
+  const p = portfolio.find(x=>x.symbol===symbol);
+  if (!p) return;
+  const invested = parseFloat(p.amountInvested);
+  const buyPx    = parseFloat(p.buyPrice);
+  const cp       = p.currentPrice;
+
+  // auto-calc shares
+  let shares = (invested>0 && buyPx>0) ? invested/buyPx : parseFloat(p.shares)||0;
+  if (invested>0 && buyPx>0) {
+    p.shares = shares.toFixed(4);
+    const el = document.getElementById('sh-'+symbol);
+    if (el && document.activeElement!==el) el.value = shares.toFixed(4);
+  }
+
+  const costBasis = (buyPx>0 && shares>0) ? buyPx*shares : null;
+  const curVal    = (cp!=null && shares>0) ? cp*shares    : null;
+  const gainDol   = (costBasis!=null && curVal!=null) ? curVal-costBasis : null;
+  const gainPct   = (gainDol!=null && costBasis>0) ? (gainDol/costBasis)*100 : null;
+
+  const setEl=(id,txt,cls)=>{const el=document.getElementById(id);if(!el)return;el.textContent=txt;if(cls!==undefined)el.className='rbox-val '+(cls||'')};
+  setEl('cost-'+symbol, costBasis!=null?'$'+costBasis.toFixed(2):'—');
+  setEl('val-' +symbol, curVal!=null   ?'$'+curVal.toFixed(2)   :'—', gainDol!=null?(gainDol>=0?'up':'down'):'');
+  if (gainDol!=null) {
+    const s=gainDol>=0?'+':'';
+    setEl('gain-'+symbol, s+'$'+Math.abs(gainDol).toFixed(2)+' ('+s+gainPct.toFixed(2)+'%)', gainDol>=0?'up':'down');
+  } else setEl('gain-'+symbol,'—');
+  renderSummary();
+}
+
+// ── INPUT HANDLERS ────────────────────────────────────────────────────────────
+function onInvested(sym, val) {
+  const p = portfolio.find(x=>x.symbol===sym);
+  if (!p) return;
+  p.amountInvested = val;
+  // auto-fill buy price from live price if not manually set
+  const q = priceCache[sym];
+  if (q && (!p.buyPrice || p.buyAutoFilled)) {
+    p.buyPrice      = q.price.toFixed(2);
+    p.buyAutoFilled = true;
+    const el = document.getElementById('bp-'+sym);
+    if (el) { el.value = p.buyPrice; el.className='autofilled'; }
+  }
+  savePortfolio();
+  recalcCard(sym);
+}
+function onBuyPrice(sym, val) {
+  const p = portfolio.find(x=>x.symbol===sym);
+  if (!p) return;
+  p.buyPrice      = val;
+  p.buyAutoFilled = false;   // user manually changed it
+  const el = document.getElementById('bp-'+sym);
+  if (el) el.className = '';
+  savePortfolio();
+  recalcCard(sym);
+}
+function onShares(sym, val) {
+  const p = portfolio.find(x=>x.symbol===sym);
+  if (!p) return;
+  p.shares = val;
+  savePortfolio();
+  recalcCard(sym);
+}
+
+// ── SELECTION ─────────────────────────────────────────────────────────────────
+function toggleSelect(symbol) {
+  selected.has(symbol)?selected.delete(symbol):selected.add(symbol);
+  document.querySelectorAll('.scard').forEach(c=>{
+    if(c.dataset.symbol===symbol) c.classList.toggle('selected',selected.has(symbol));
+  });
+  updateSelBar();
+}
+function clearSelection(){selected.clear();document.querySelectorAll('.scard').forEach(c=>c.classList.remove('selected'));updateSelBar()}
+function updateSelBar(){
+  const bar=document.getElementById('selBar');
+  document.getElementById('selBarText').textContent=selected.size+' stock'+(selected.size!==1?'s':'')+' selected';
+  selected.size>0?bar.classList.add('visible'):bar.classList.remove('visible');
+}
+function addSelectedToPortfolio() {
+  selected.forEach(symbol=>{
+    if(!portfolio.find(p=>p.symbol===symbol)){
+      const pick=PICKS.find(p=>p.symbol===symbol);
+      if(pick) portfolio.push({
+        symbol:pick.symbol,company:pick.company,sector:pick.sector,upside:pick.upside,
+        amountInvested:'',buyPrice:'',shares:'',currentPrice:null,buyAutoFilled:false,
+        addedDate:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      });
+    }
+  });
+  savePortfolio(); clearSelection(); switchTab('portfolio');
+}
+function removeFromPortfolio(symbol) {
+  if(priceTimers[symbol]){clearInterval(priceTimers[symbol]);delete priceTimers[symbol];}
+  portfolio=portfolio.filter(p=>p.symbol!==symbol);
+  savePortfolio(); renderPortfolio();
+}
+
+// ── SUMMARY ───────────────────────────────────────────────────────────────────
+function renderSummary() {
+  const grid=document.getElementById('summaryGrid');
+  if(!portfolio.length){grid.innerHTML='';return}
+  let totalCost=0,totalVal=0,gainers=0,losers=0;
+  portfolio.forEach(p=>{
+    const bp=parseFloat(p.buyPrice),inv=parseFloat(p.amountInvested),cp=p.currentPrice;
+    const sh=(inv>0&&bp>0)?inv/bp:parseFloat(p.shares)||0;
+    if(sh>0&&bp>0){totalCost+=bp*sh;if(cp!=null){totalVal+=cp*sh;if(cp>bp)gainers++;else if(cp<bp)losers++;}}
+  });
+  const gain=totalVal-totalCost,pct=totalCost>0?(gain/totalCost)*100:0,gc=gain>=0?'up':'down',gs=gain>=0?'+':'';
+  grid.innerHTML=`
+    <div class="sum-card"><div class="sum-label">Holdings</div><div class="sum-value">${portfolio.length}</div></div>
+    <div class="sum-card"><div class="sum-label">Total Invested</div><div class="sum-value">${totalCost>0?'$'+totalCost.toFixed(2):'—'}</div></div>
+    <div class="sum-card"><div class="sum-label">Current Value</div><div class="sum-value ${totalVal>0?'up':''}">${totalVal>0?'$'+totalVal.toFixed(2):'—'}</div></div>
+    <div class="sum-card"><div class="sum-label">Total Gain/Loss</div><div class="sum-value ${totalCost>0?gc:''}">${totalCost>0?gs+'$'+Math.abs(gain).toFixed(2)+' ('+gs+pct.toFixed(2)+'%)':'—'}</div></div>
+    <div class="sum-card"><div class="sum-label">Winners/Losers</div><div class="sum-value"><span style="color:var(--green)">${gainers}</span> / <span style="color:var(--red)">${losers}</span></div></div>`;
+}
+
+// ── RENDER PORTFOLIO ──────────────────────────────────────────────────────────
+function renderPortfolio() {
+  renderSummary();
+  const el=document.getElementById('portContent');
+  if(!portfolio.length){el.innerHTML=`<div class="port-empty"><h3>No stocks yet</h3><p>Go to Picks, click cards to select,<br>then hit "Add to Portfolio".</p></div>`;return;}
+  el.innerHTML=portfolio.map((p,idx)=>{
+    const cp=p.currentPrice,bp=parseFloat(p.buyPrice),inv=parseFloat(p.amountInvested);
+    const sh=(inv>0&&bp>0)?inv/bp:parseFloat(p.shares)||0;
+    const cost=(bp>0&&sh>0)?bp*sh:null;
+    const curV=(cp!=null&&sh>0)?cp*sh:null;
+    const gd=(cost!=null&&curV!=null)?curV-cost:null;
+    const gp=(gd!=null&&cost>0)?(gd/cost)*100:null;
+    const gainStr=gd!=null?(gd>=0?'+':'')+'$'+Math.abs(gd).toFixed(2)+' ('+(gd>=0?'+':'')+gp.toFixed(2)+'%)':'—';
+    const gainCls=gd!=null?(gd>=0?'up':'down'):'';
+    const tvId='tv-port-'+p.symbol;
+    const bpCls=p.buyAutoFilled?'autofilled':'';
+    return `
+    <div class="port-card" style="animation-delay:${idx*0.06}s">
+      <div class="port-card-body">
+        <div class="port-info">
+          <div class="port-ticker-row">
+            <span class="port-ticker">${p.symbol}</span>
+            <span class="port-target">${p.upside} target</span>
+            <button class="btn-remove" style="margin-left:auto" onclick="removeFromPortfolio('${p.symbol}')">✕ Remove</button>
+          </div>
+          <div class="port-co">${p.company} · Added ${p.addedDate}</div>
+
+          <div class="live-badge">
+            <div class="live-dot"></div>
+            <div class="live-col">
+              <div class="live-label">Live Market Price</div>
+              <div class="live-price ${cp?'':'fetching'}" id="lp-${p.symbol}">${cp?'$'+cp.toFixed(2):'Fetching…'}</div>
+              <div class="live-sub" id="lupd-${p.symbol}">auto-refreshes every 60s</div>
+            </div>
+            <div class="live-right">
+              <div class="live-chg" id="lchg-${p.symbol}">—</div>
+              <div class="live-hl" id="lhl-${p.symbol}">—</div>
+            </div>
+          </div>
+
+          <div class="input-grid">
+            <div class="ifield">
+              <label>💵 Amount I Invested ($)</label>
+              <input type="number" min="0" step="1" placeholder="e.g. 500"
+                value="${p.amountInvested}"
+                oninput="onInvested('${p.symbol}',this.value)"/>
+              <span class="field-hint">Enter total $ you put in</span>
+            </div>
+            <div class="ifield">
+              <label>📌 Buy Price Per Share ($)</label>
+              <input type="number" min="0" step="0.01" placeholder="auto-fills from live price"
+                id="bp-${p.symbol}"
+                class="${bpCls}"
+                value="${p.buyPrice}"
+                oninput="onBuyPrice('${p.symbol}',this.value)"/>
+              <span class="field-hint">${p.buyAutoFilled?'⚡ Auto-filled from live price':'Filled when you enter amount'}</span>
+            </div>
+            <div class="ifield">
+              <label>🔢 Shares (auto-calculated)</label>
+              <input type="number" class="auto" id="sh-${p.symbol}"
+                placeholder="auto" step="0.0001"
+                value="${sh>0?sh.toFixed(4):''}"
+                oninput="onShares('${p.symbol}',this.value)"/>
+              <span class="field-hint">Amount ÷ Buy Price</span>
+            </div>
+            <div class="ifield">
+              <label>📅 Date Added</label>
+              <input type="text" value="${p.addedDate}" readonly style="opacity:0.5;cursor:default"/>
+            </div>
+          </div>
+
+          <div class="result-row">
+            <div class="rbox"><div class="rbox-label">Cost Basis</div><div class="rbox-val" id="cost-${p.symbol}">${cost!=null?'$'+cost.toFixed(2):'—'}</div></div>
+            <div class="rbox"><div class="rbox-label">Current Value</div><div class="rbox-val ${gainCls}" id="val-${p.symbol}">${curV!=null?'$'+curV.toFixed(2):'—'}</div></div>
+            <div class="rbox"><div class="rbox-label">Gain / Loss</div><div class="rbox-val ${gainCls}" id="gain-${p.symbol}">${gainStr}</div></div>
+          </div>
+        </div>
+
+        <div class="port-chart-side">
+          <div class="tradingview-widget-container" id="${tvId}" style="height:100%;min-height:460px">
+            <div class="tradingview-widget-container__widget" style="height:460px"></div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  setTimeout(()=>{
+    portfolio.forEach(p=>buildTV('tv-port-'+p.symbol, p.symbol));
+  },150);
+}
+
+// ── RENDER PICKS ──────────────────────────────────────────────────────────────
+function renderStocks() {
+  document.getElementById('stockGrid').innerHTML = PICKS.map((s,i)=>{
+    const score=s.confidence,cc=confColor(score);
+    const bars=Array(10).fill(0).map((_,j)=>`<span style="background:${j<score?cc:'rgba(0,0,0,0.1)'}"></span>`).join('');
+    const tvId='tv-pick-'+s.symbol;
+    return `
+    <div class="scard" data-symbol="${s.symbol}" style="animation-delay:${i*0.05}s" onclick="toggleSelect('${s.symbol}')">
+      <div class="scard-left">
+        <div class="scard-top">
+          <div class="check-col">
+            <div class="checkmark"><svg viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3"/></svg></div>
+          </div>
+          <div class="rank-col">
+            <div class="rank-num">${String(i+1).padStart(2,'0')}</div>
+            <div class="sig sig-${s.signal}">${s.signal}</div>
+          </div>
+          <div class="body-col">
+            <div class="top-row">
+              <span class="ticker">${s.symbol}</span>
+              <span class="co-name">${s.company}</span>
+              <span class="sector-tag">${s.sector}</span>
+              <span class="upside-inline">${s.upside}</span>
+            </div>
+            <div class="mets">
+              <div class="met"><span class="ml">P/E</span><span class="mv">${s.pe_note}</span></div>
+              <div class="met"><span class="ml">EPS</span><span class="mv-g">${s.eps_note}</span></div>
+              <div class="met"><span class="ml">Catalyst</span><span class="mv-a">${s.catalyst}</span></div>
+            </div>
+            <p class="reason">${s.reasoning}</p>
+            <div class="conf-row">
+              <span class="conf-label">Conviction</span>
+              <div class="conf-bar">${bars}</div>
+              <span class="conf-score" style="color:${cc}">${score}<span style="font-size:11px;opacity:0.45">/10</span></span>
+            </div>
+          </div>
+        </div>
+        <div class="pick-price-strip" onclick="event.stopPropagation()">
+          <div class="pps-dot"></div>
+          <div>
+            <div class="pps-label">Live Price</div>
+            <div class="pps-price loading" id="pps-price-${s.symbol}">fetching…</div>
+          </div>
+          <div class="pps-chg" id="pps-chg-${s.symbol}">—</div>
+          <div class="pps-hl" id="pps-hl-${s.symbol}">—</div>
+        </div>
+      </div>
+      <div class="scard-chart" onclick="event.stopPropagation()">
+        <div class="tradingview-widget-container" id="${tvId}" style="position:absolute;inset:0">
+          <div class="tradingview-widget-container__widget" style="height:100%;width:100%"></div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  setTimeout(()=>{ PICKS.forEach(s=>buildTV('tv-pick-'+s.symbol, s.symbol)); }, 300);
+}
+
+init();
+</script>
+</body>
+</html>
